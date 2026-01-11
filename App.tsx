@@ -680,7 +680,18 @@ const fileToPart = async (file: File) => {
     reader.onloadend = () => {
       if (reader.result) {
           const base64Data = (reader.result as string).split(',')[1];
-          resolve({ inlineData: { data: base64Data, mimeType: file.type } });
+          // GÜVENLİ MIME TYPE ALGILAMA
+          let mimeType = file.type;
+          const ext = file.name.split('.').pop()?.toLowerCase();
+          
+          if (!mimeType || mimeType === "") {
+              if (ext === 'pdf') mimeType = 'application/pdf';
+              else if (['jpg', 'jpeg'].includes(ext || '')) mimeType = 'image/jpeg';
+              else if (['png'].includes(ext || '')) mimeType = 'image/png';
+              else mimeType = 'application/pdf'; // Varsayılan olarak PDF kabul et
+          }
+          
+          resolve({ inlineData: { data: base64Data, mimeType: mimeType } });
       } else reject(new Error("Dosya okunamadı."));
     };
     reader.onerror = reject;
@@ -1218,6 +1229,7 @@ function App() {
   };
 
   const handleFiles = useCallback(async (files: File[]) => {
+    if (!files || files.length === 0) return;
     setIsProcessing(true);
     let currentCompanies = [...companies];
     let companiesChanged = false;
