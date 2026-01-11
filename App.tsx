@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback } from 'react';
-import { FileDropzone } from './components/FileDropzone';
+import { FileDropzone } from './components/Dropzone';
 import { ResultTable } from './components/ResultTable';
 import { TaxTable } from './components/TaxTable';
 import { EditModal } from './components/EditModal';
