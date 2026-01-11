@@ -7,96 +7,8 @@ import autoTable from 'jspdf-autotable';
 import jsPDF from 'jspdf';
 
 // ============================================================================================
-// 1. TİPLER (TYPES)
+// 1. PYTHON ROBOT KODLARI (GÖMÜLÜ)
 // ============================================================================================
-
-export interface VatDetail {
-  rate: number;
-  taxAmount: number;
-  grossAmount: number;
-}
-
-export interface Company {
-  id: string;
-  name: string;
-  matchKeywords: string;
-  email?: string;
-  phone?: string;
-}
-
-export interface RobotSettings {
-  email: string;
-  appPassword: string;
-  whatsappEnabled: boolean;
-  emailEnabled: boolean;
-  sendingMode: 'all' | 'summary_only' | 'receipts_only';
-}
-
-export interface ZReportData {
-  id: string;
-  fileName: string;
-  date: string;
-  zReportNo: string;
-  posName: string;
-  totalSales: number;
-  cashAmount: number;
-  creditCardAmount: number;
-  vatDetails: VatDetail[];
-  status: 'pending' | 'processing' | 'success' | 'error';
-  errorMessage?: string;
-  companyId?: string;
-}
-
-export type TaxType = 'KDV1' | 'KDV2' | 'MUHSGK' | 'SGK' | 'GGV' | 'KGV' | 'KV' | 'GV' | 'KONAKLAMA' | 'TURIZM' | 'POSET' | 'DIGER';
-
-export interface TaxDocumentData {
-  id: string;
-  fileName: string;
-  companyName: string;
-  taxType: TaxType;
-  amount: number;
-  period: string;
-  referenceNumber: string;
-  dueDate?: string;
-  status: 'success' | 'error';
-  companyId?: string;
-  originalFile?: File;
-}
-
-// ============================================================================================
-// 2. SABİTLER VE ROBOT ŞABLONLARI
-// ============================================================================================
-
-const EXCEL_HEADERS = [
-  "Belge Tarihi", "Belge Türü", "Belge No",
-  "% 20 KDV'li\nKDV Dahil\nTutar\nAlacak", "% 20 KDV'li\nKDV\n (% 20)\nAlacak",
-  "% 10 KDV'li\nKDV Dahil\nTutar\nAlacak", "% 10 KDV'li\nKDV\n (% 10)\nAlacak",
-  "% 1 KDV'li\nKDV Dahil\nTutar\nAlacak", "% 1 KDV'li\nKDV\n (% 1)\nAlacak",
-  "% 0 KDV'li\nKDV Dahil\nTutar\nAlacak",
-  "KASA\n\nTutar\nBorç", "KREDİ KARTI\n\nTutar\nBorç", "CARİ\n\nTutar\nBorç"
-];
-
-const DOC_TYPE = "ZRP";
-
-const SYSTEM_INSTRUCTION = `
-Sen uzman bir muhasebe OCR asistanısın.
-GÖREV: Görüntüdeki Z RAPORLARINI bul ve aşağıdaki KATI KURALLARA göre verilerini çıkar.
-JSON formatında döndür.
-`;
-
-const TAX_SYSTEM_INSTRUCTION = `
-Sen uzman bir Mali Müşavir ve Vergi Uzmanısın.
-GÖREV: Görüntüdeki "Tahakkuk Fişi" veya "Vergi/SGK Alındısı" belgesini analiz et.
-ÖNEMLİ: Belgede yazan FIRMA ADINI (companyName) mutlaka tam olarak, olduğu gibi çıkar.
-Çıkarılacak Veriler (JSON):
-- companyName: Firma tam ünvanı.
-- taxType: Belge türünü belirle (KDV1, KDV2, MUHSGK, SGK, KGV, GGV, KV, GV, KONAKLAMA, TURIZM, POSET, DAMGA, DIGER).
-- amount: Ödenecek Toplam Tutar.
-- period: Dönem.
-- referenceNumber: Tahakkuk fiş numarası.
-- dueDate: Vade tarihi.
-Sadece JSON dizisi döndür.
-`;
 
 const LOADER_SCRIPT_CONTENT = `
 import base64
@@ -112,8 +24,7 @@ def log_crash(e):
             f.write("=============================\\n")
             f.write(str(e) + "\\n\\n")
             f.write(traceback.format_exc())
-    except:
-        pass
+    except: pass
 
 try:
     if not os.path.exists("data.lib"):
@@ -140,15 +51,14 @@ except Exception as e:
     except: pass
 `;
 
-const README_CONTENT = `MUHASEBE ROBOTU - MOD MODERN (v16)
+const README_CONTENT = `MUHASEBE ROBOTU - NETLIFY EDITION (v2.0)
 
 NASIL KULLANILIR?
-1. İndirdiğiniz "Ödeme Bildirimleri" veya "Z-Raporu" ZIP dosyasını klasöre atın.
-2. Robot otomatik algılar.
-3. WhatsApp ve Mail gönderimi otomatik yapılır.
+1. İndirdiğiniz "Ödeme Bildirimleri" veya "Z-Raporu" ZIP dosyasını bu klasöre atın.
+2. Robot otomatik algılar, WhatsApp ve Mail gönderimini yapar.
+3. Ayarları değiştirmek için program arayüzündeki "Ayarlar" butonunu kullanın.
 `;
 
-// PYTHON ROBOTUNUN TAM KAYNAK KODU (GUI DAHİL)
 const PYTHON_SCRIPT_CONTENT = `
 # -*- coding: utf-8 -*-
 import sys
@@ -502,7 +412,99 @@ if __name__ == "__main__":
 `;
 
 // ============================================================================================
-// 3. YARDIMCI FONKSİYONLAR (UTILS)
+// 2. TİPLER (TYPES)
+// ============================================================================================
+
+export interface VatDetail {
+  rate: number;
+  taxAmount: number;
+  grossAmount: number;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  matchKeywords: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface RobotSettings {
+  email: string;
+  appPassword: string;
+  whatsappEnabled: boolean;
+  emailEnabled: boolean;
+  sendingMode: 'all' | 'summary_only' | 'receipts_only';
+}
+
+export interface ZReportData {
+  id: string;
+  fileName: string;
+  date: string;
+  zReportNo: string;
+  posName: string;
+  totalSales: number;
+  cashAmount: number;
+  creditCardAmount: number;
+  vatDetails: VatDetail[];
+  status: 'pending' | 'processing' | 'success' | 'error';
+  errorMessage?: string;
+  companyId?: string;
+}
+
+export type TaxType = 'KDV1' | 'KDV2' | 'MUHSGK' | 'SGK' | 'GGV' | 'KGV' | 'KV' | 'GV' | 'KONAKLAMA' | 'TURIZM' | 'POSET' | 'DIGER';
+
+export interface TaxDocumentData {
+  id: string;
+  fileName: string;
+  companyName: string;
+  taxType: TaxType;
+  amount: number;
+  period: string;
+  referenceNumber: string;
+  dueDate?: string;
+  status: 'success' | 'error';
+  companyId?: string;
+  originalFile?: File;
+}
+
+// ============================================================================================
+// 3. SABİTLER VE KONFIGURASYON
+// ============================================================================================
+
+const EXCEL_HEADERS = [
+  "Belge Tarihi", "Belge Türü", "Belge No",
+  "% 20 KDV'li\nKDV Dahil\nTutar\nAlacak", "% 20 KDV'li\nKDV\n (% 20)\nAlacak",
+  "% 10 KDV'li\nKDV Dahil\nTutar\nAlacak", "% 10 KDV'li\nKDV\n (% 10)\nAlacak",
+  "% 1 KDV'li\nKDV Dahil\nTutar\nAlacak", "% 1 KDV'li\nKDV\n (% 1)\nAlacak",
+  "% 0 KDV'li\nKDV Dahil\nTutar\nAlacak",
+  "KASA\n\nTutar\nBorç", "KREDİ KARTI\n\nTutar\nBorç", "CARİ\n\nTutar\nBorç"
+];
+
+const DOC_TYPE = "ZRP";
+
+const SYSTEM_INSTRUCTION = `
+Sen uzman bir muhasebe OCR asistanısın.
+GÖREV: Görüntüdeki Z RAPORLARINI bul ve aşağıdaki KATI KURALLARA göre verilerini çıkar.
+JSON formatında döndür.
+`;
+
+const TAX_SYSTEM_INSTRUCTION = `
+Sen uzman bir Mali Müşavir ve Vergi Uzmanısın.
+GÖREV: Görüntüdeki "Tahakkuk Fişi" veya "Vergi/SGK Alındısı" belgesini analiz et.
+ÖNEMLİ: Belgede yazan FIRMA ADINI (companyName) mutlaka tam olarak, olduğu gibi çıkar.
+Çıkarılacak Veriler (JSON):
+- companyName: Firma tam ünvanı.
+- taxType: Belge türünü belirle (KDV1, KDV2, MUHSGK, SGK, KGV, GGV, KV, GV, KONAKLAMA, TURIZM, POSET, DAMGA, DIGER).
+- amount: Ödenecek Toplam Tutar.
+- period: Dönem.
+- referenceNumber: Tahakkuk fiş numarası.
+- dueDate: Vade tarihi.
+Sadece JSON dizisi döndür.
+`;
+
+// ============================================================================================
+// 4. YARDIMCI FONKSİYONLAR
 // ============================================================================================
 
 const transliterate = (text: string): string => {
@@ -667,7 +669,7 @@ const exportTaxSummaryToExcel = (taxItems: TaxDocumentData[], companies: Company
 };
 
 // ============================================================================================
-// 4. SERVİS MANTIĞI (GEMINI SERVICE)
+// 5. GEMINI API ENTEGRASYONU
 // ============================================================================================
 
 const getAIClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -748,7 +750,7 @@ const processTaxDocument = async (file: File, isTest: boolean): Promise<TaxDocum
 };
 
 // ============================================================================================
-// 5. BİLEŞENLER (COMPONENTS)
+// 6. UI BİLEŞENLERİ
 // ============================================================================================
 
 interface UploadSectionProps { onFilesSelected: (files: File[]) => void; disabled: boolean; }
@@ -1153,7 +1155,7 @@ const EditModal: React.FC<any> = ({item, isOpen, onClose, onSave}) => {
 };
 
 // ============================================================================================
-// 6. ANA UYGULAMA (APP)
+// 7. ANA UYGULAMA (APP)
 // ============================================================================================
 
 function App() {
@@ -1253,7 +1255,7 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 px-8 h-16 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-3"><div className="bg-blue-600 text-white font-bold p-2 rounded-lg">M-AI</div><h1 className="text-xl font-bold text-slate-800">MuhasebeAI <span className="text-blue-600 text-sm">Turbo v2.5 Final</span></h1></div>
+        <div className="flex items-center gap-3"><div className="bg-blue-600 text-white font-bold p-2 rounded-lg">M-AI</div><h1 className="text-xl font-bold text-slate-800">MuhasebeAI <span className="text-blue-600 text-sm">Turbo (Netlify Edition)</span></h1></div>
         <div className="flex gap-2">
           <button onClick={() => setIsTestMode(!isTestMode)} className={`px-3 py-2 rounded-lg text-xs font-bold ${isTestMode ? 'bg-amber-400 text-amber-900' : 'bg-slate-100 text-slate-500'}`}>{isTestMode ? 'TEST AKTİF' : 'Test Modu'}</button>
           
