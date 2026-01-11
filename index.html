@@ -1,0 +1,75 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="MuhasebeAI Pro - Z-Raporu ve Tahakkuk Otomasyon Sistemi" />
+    <title>MuhasebeAI Pro | Otomasyon Merkezi</title>
+    
+    <!-- Tailwind CSS (CDN - Opsiyonel, build adımında postcss kullanıldığı için kaldırılabilir ama garanti olsun diye bırakıyoruz) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+      body { 
+        font-family: 'Inter', sans-serif; 
+        background-color: #f8fafc; 
+        margin: 0;
+        overflow-x: hidden;
+      }
+      #root { min-height: 100vh; }
+      
+      /* Yükleme Ekranı Stilleri */
+      .loading-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        color: #1e293b;
+        background-color: #f8fafc;
+      }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      .spinner {
+        width: 40px; 
+        height: 40px; 
+        border: 4px solid #e2e8f0; 
+        border-top: 4px solid #2563eb; 
+        border-radius: 50%; 
+        animation: spin 1s linear infinite;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "xlsx": "https://esm.sh/xlsx@^0.18.5",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "jspdf": "https://esm.sh/jspdf@^4.0.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "jszip": "https://esm.sh/jszip@^3.10.1",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@^5.0.7"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root">
+      <div class="loading-screen">
+        <div class="spinner"></div>
+        <p style="margin-top: 16px; font-weight: 600; font-size: 14px; color: #475569;">Sistem Yükleniyor...</p>
+      </div>
+    </div>
+    <script type="module" src="./index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
