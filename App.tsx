@@ -981,7 +981,7 @@ const RobotConfigModal: React.FC<RobotConfigModalProps> = ({ isOpen, onClose, on
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Uygulama Şifresi (App Password)</label>
                         <input type="text" placeholder="xxxx xxxx xxxx xxxx" className="w-full p-2 border rounded-lg text-sm font-mono" value={settings.appPassword} onChange={e => setSettings({...settings, appPassword: e.target.value})} />
-                        <p className="text-[10px] text-slate-400 mt-1">* Google Hesabım -> Güvenlik -> 2 Adımlı Doğrulama -> Uygulama Şifreleri</p>
+                        <p className="text-[10px] text-slate-400 mt-1">* Google Hesabım &rarr; Güvenlik &rarr; 2 Adımlı Doğrulama &rarr; Uygulama Şifreleri</p>
                     </div>
                 </div>
             )}
