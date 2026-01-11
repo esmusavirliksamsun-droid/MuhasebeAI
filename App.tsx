@@ -915,7 +915,7 @@ const CompanyManagerModal: React.FC<CompanyManagerModalProps> = ({ isOpen, onClo
   );
 };
 
-// --- ROBOT KURULUM MODALI (YENİ EKLENDİ) ---
+// --- ROBOT KURULUM MODALI (YENİ EKLENDİ - EN ÜSTTE İNDİRME BUTONU) ---
 interface RobotConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -934,13 +934,29 @@ const RobotConfigModal: React.FC<RobotConfigModalProps> = ({ isOpen, onClose, on
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto" aria-modal="true">
+    <div className="fixed inset-0 z-[9999] overflow-y-auto" aria-modal="true">
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-80 transition-opacity" onClick={onClose}></div>
-        <div className="relative inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div className="bg-slate-800 px-6 py-4 flex justify-between items-center"><h3 className="text-lg font-bold text-white">🤖 Robot Kurulum Merkezi</h3><button onClick={onClose} className="text-white text-2xl hover:text-gray-300">&times;</button></div>
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-90 transition-opacity" onClick={onClose}></div>
+        <div className="relative inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border-4 border-slate-800">
+          <div className="bg-slate-800 px-6 py-4 flex justify-between items-center"><h3 className="text-lg font-bold text-white">🤖 Robot Kurulum & İndirme</h3><button onClick={onClose} className="text-white text-2xl hover:text-gray-300">&times;</button></div>
           <div className="px-6 py-6 space-y-6">
-            <p className="text-sm text-slate-600 bg-blue-50 p-3 rounded border border-blue-100">Bu ayarlar, indirilecek olan Python Robotu'nun içine gömülecektir. Robotu indirdikten sonra tekrar ayar yapmanıza gerek kalmaz.</p>
+            
+            {/* EN ÜSTTE BÜYÜK İNDİRME BUTONU - GÖZDEN KAÇIRILAMAZ */}
+            <div className="bg-green-50 p-4 rounded-xl border-2 border-green-500 text-center">
+                <p className="text-green-800 font-bold mb-2">Ayarları yapmadan da indirebilirsiniz:</p>
+                <button onClick={() => onDownload(settings)} className="w-full bg-green-600 hover:bg-green-700 text-white text-lg py-4 rounded-xl font-bold shadow-xl transition-transform hover:scale-105 active:scale-95 flex items-center justify-center gap-3">
+                    <span className="text-2xl">📥</span> HEMEN İNDİR (.ZIP)
+                </button>
+            </div>
+
+            <div className="relative">
+                <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center">
+                    <span className="bg-white px-2 text-sm text-gray-500">veya ayarları özelleştirin</span>
+                </div>
+            </div>
             
             <div className="space-y-3">
                 <label className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
@@ -969,10 +985,7 @@ const RobotConfigModal: React.FC<RobotConfigModalProps> = ({ isOpen, onClose, on
             )}
           </div>
           <div className="bg-gray-50 px-6 py-4 flex flex-row-reverse gap-3">
-            <button onClick={() => onDownload(settings)} className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg flex items-center gap-2">
-                <span>📦</span> Robotu İndir (.ZIP)
-            </button>
-            <button onClick={onClose} className="bg-white border hover:bg-gray-50 text-slate-700 px-4 py-2.5 rounded-xl font-bold text-sm">İptal</button>
+            <button onClick={onClose} className="bg-white border hover:bg-gray-50 text-slate-700 px-4 py-2.5 rounded-xl font-bold text-sm">Kapat</button>
           </div>
         </div>
       </div>
@@ -1240,13 +1253,13 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 px-8 h-16 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-3"><div className="bg-blue-600 text-white font-bold p-2 rounded-lg">M-AI</div><h1 className="text-xl font-bold text-slate-800">MuhasebeAI <span className="text-blue-600 text-sm">Turbo</span></h1></div>
+        <div className="flex items-center gap-3"><div className="bg-blue-600 text-white font-bold p-2 rounded-lg">M-AI</div><h1 className="text-xl font-bold text-slate-800">MuhasebeAI <span className="text-blue-600 text-sm">Turbo v2.5 Final</span></h1></div>
         <div className="flex gap-2">
           <button onClick={() => setIsTestMode(!isTestMode)} className={`px-3 py-2 rounded-lg text-xs font-bold ${isTestMode ? 'bg-amber-400 text-amber-900' : 'bg-slate-100 text-slate-500'}`}>{isTestMode ? 'TEST AKTİF' : 'Test Modu'}</button>
           
           <button onClick={() => { setEditingCompanyId(null); setIsCompanyModalOpen(true); }} className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-50 flex items-center gap-2"><span>🏢</span> Firmalar</button>
           
-          <button onClick={() => setIsRobotModalOpen(true)} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-900 shadow-md flex items-center gap-2 transition-all hover:scale-105 active:scale-95"><span>🤖</span> Robotu İndir</button>
+          <button onClick={() => setIsRobotModalOpen(true)} className="bg-green-600 text-white px-5 py-2 rounded-lg text-xs font-bold hover:bg-green-700 shadow-lg flex items-center gap-2 transition-transform hover:scale-105 active:scale-95 animate-pulse"><span>📥</span> ROBOTU İNDİR</button>
         </div>
       </header>
       <main className="max-w-6xl mx-auto py-10 px-4">
