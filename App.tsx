@@ -767,10 +767,25 @@ const processTaxDocument = async (file: File, isTest: boolean): Promise<TaxDocum
 interface UploadSectionProps { onFilesSelected: (files: File[]) => void; disabled: boolean; }
 const UploadSection: React.FC<UploadSectionProps> = ({ onFilesSelected, disabled }) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const handleDrop = (e: React.DragEvent) => { e.preventDefault(); if(!disabled && e.dataTransfer.files) onFilesSelected(Array.from(e.dataTransfer.files)); };
+  
+  // CRITICAL FIX: Input değerini resetleyerek aynı dosyanın tekrar seçilmesini sağlıyoruz
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+        onFilesSelected(Array.from(e.target.files));
+        e.target.value = ''; // Input'u temizle
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => { 
+    e.preventDefault(); 
+    if(!disabled && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        onFilesSelected(Array.from(e.dataTransfer.files));
+    }
+  };
+
   return (
     <div onClick={() => !disabled && inputRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={handleDrop} className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all ${disabled ? 'opacity-50' : 'hover:border-blue-400 hover:bg-slate-50'}`}>
-      <input type="file" ref={inputRef} onChange={e => e.target.files && onFilesSelected(Array.from(e.target.files))} className="hidden" multiple accept="image/*,.pdf" disabled={disabled} />
+      <input type="file" ref={inputRef} onChange={handleFileChange} className="hidden" multiple accept="image/*,.pdf" disabled={disabled} />
       <div className="text-slate-700 font-semibold text-lg">{disabled ? 'İşlem Sürüyor...' : 'Dosyaları Buraya Bırakın'}</div>
     </div>
   );
