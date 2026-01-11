@@ -6,7 +6,9 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   define: {
-    // API Anahtarı doğrudan koda gömüldü (İsteğiniz üzerine)
-    'process.env.API_KEY': JSON.stringify("AIzaSyB-Ctit_-i2pR3NIUwrv2ldc2TuYd3ZpKw")
+    // API Anahtarı
+    'process.env.API_KEY': JSON.stringify("AIzaSyB-Ctit_-i2pR3NIUwrv2ldc2TuYd3ZpKw"),
+    // Harici kütüphanelerin 'process is not defined' hatası vermesini engeller
+    'process.env': {}
   }
 });
