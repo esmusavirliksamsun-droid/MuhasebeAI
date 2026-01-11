@@ -678,20 +678,25 @@ const fileToPart = async (file: File) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      if (reader.result && typeof reader.result === 'string') {
-          const base64Data = reader.result.split(',')[1];
-          let mimeType = file.type;
-          const ext = file.name.split('.').pop()?.toLowerCase();
-          
-          if (!mimeType || mimeType === "") {
-              if (ext === 'pdf') mimeType = 'application/pdf';
-              else if (['jpg', 'jpeg'].includes(ext || '')) mimeType = 'image/jpeg';
-              else if (['png'].includes(ext || '')) mimeType = 'image/png';
-              else mimeType = 'application/pdf'; 
-          }
-          
-          resolve({ inlineData: { data: base64Data, mimeType: mimeType } });
-      } else reject(new Error("Dosya verisi boş."));
+      const result = reader.result as string;
+      if (!result) { reject(new Error("Dosya boş okundu.")); return; }
+      
+      // Base64 başlığını temizle
+      let base64Data = result;
+      if (result.includes('base64,')) {
+          base64Data = result.split('base64,')[1];
+      }
+      
+      // MIME Type Zorlama (Browser yanlış verebilir)
+      let mimeType = 'application/pdf'; // Varsayılan PDF kabul et (en güvenli)
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      
+      if (ext === 'png') mimeType = 'image/png';
+      else if (['jpg', 'jpeg'].includes(ext || '')) mimeType = 'image/jpeg';
+      else if (['webp'].includes(ext || '')) mimeType = 'image/webp';
+      else if (ext === 'pdf') mimeType = 'application/pdf';
+
+      resolve({ inlineData: { data: base64Data, mimeType: mimeType } });
     };
     reader.onerror = () => reject(new Error("Dosya okunamadı."));
     reader.readAsDataURL(file);
@@ -704,17 +709,22 @@ const cleanAndParseJSON = (text: string) => {
         let cleanText = text.replace(/```json|```/g, '').trim();
         const firstBracket = cleanText.indexOf('[');
         const lastBracket = cleanText.lastIndexOf(']');
-        if (firstBracket !== -1 && lastBracket !== -1) cleanText = cleanText.substring(firstBracket, lastBracket + 1);
-        else {
+        
+        if (firstBracket !== -1 && lastBracket !== -1) {
+             cleanText = cleanText.substring(firstBracket, lastBracket + 1);
+        } else {
+             // Bazen tek obje dönerse array'e çevir
              const firstBrace = cleanText.indexOf('{');
              const lastBrace = cleanText.lastIndexOf('}');
-             if (firstBrace !== -1 && lastBrace !== -1) cleanText = "[" + cleanText.substring(firstBrace, lastBrace + 1) + "]";
+             if (firstBrace !== -1 && lastBrace !== -1) {
+                 cleanText = "[" + cleanText.substring(firstBrace, lastBrace + 1) + "]";
+             }
         }
         
         const res = JSON.parse(cleanText);
         return Array.isArray(res) ? res : [res];
     } catch (e) { 
-        console.error("Parse Error:", text);
+        console.error("JSON Parse Error:", text); // Konsolda ham metni gör
         throw e; 
     }
 };
@@ -765,7 +775,9 @@ const processTaxDocument = async (file: File, isTest: boolean): Promise<TaxDocum
             period: item.period || "-", referenceNumber: item.referenceNumber || "-",
             dueDate: item.dueDate, status: 'success', originalFile: file
         }));
-    } catch {
+    } catch (e: any) {
+        // Hata detayını yakala
+        console.error("Process Tax Error:", e);
         return [{ id: crypto.randomUUID(), fileName: file.name, companyName: "HATA - OKUNAMADI", taxType: "DIGER", amount: 0, period: "-", referenceNumber: "-", status: 'error', originalFile: file }];
     }
 };
