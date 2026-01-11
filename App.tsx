@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback } from 'react';
-import { Dropzone } from './components/Dropzone';
+import { FileDropzone } from './components/FileDropzone';
 import { ResultTable } from './components/ResultTable';
 import { TaxTable } from './components/TaxTable';
 import { EditModal } from './components/EditModal';
@@ -146,7 +146,7 @@ function App() {
         </div>
 
         <div className="bg-white rounded-2xl p-10 shadow-xl border border-slate-200 animate-slideUp">
-          <Dropzone onFilesSelected={handleFiles} disabled={isProcessing} />
+          <FileDropzone onFilesSelected={handleFiles} disabled={isProcessing} />
           {isProcessing && <div className="mt-4 text-center text-blue-600 font-medium animate-pulse">Belgeler Analiz Ediliyor... Lütfen Bekleyiniz.</div>}
           
           {((activeMode === 'zreport' && zItems.length > 0) || (activeMode === 'tax' && taxItems.length > 0)) && (
