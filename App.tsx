@@ -64,7 +64,7 @@ export interface TaxDocumentData {
 }
 
 // ============================================================================================
-// 2. SABİTLER (CONSTANTS & TEMPLATES)
+// 2. SABİTLER VE ROBOT ŞABLONLARI (CONSTANTS & TEMPLATES)
 // ============================================================================================
 
 const EXCEL_HEADERS = [
@@ -99,36 +99,496 @@ Sadece JSON dizisi döndür.
 `;
 
 const LOADER_SCRIPT_CONTENT = `
-import base64, os, sys, time, traceback
+import base64
+import os
+import sys
+import time
+import traceback
+
 def log_crash(e):
     try:
         with open("HATA_RAPORU.txt", "w", encoding="utf-8") as f:
-            f.write(str(e) + "\\n" + traceback.format_exc())
-    except: pass
+            f.write("MUHASEBE ROBOTU HATA RAPORU\\n")
+            f.write("=============================\\n")
+            f.write(str(e) + "\\n\\n")
+            f.write(traceback.format_exc())
+    except:
+        pass
+
 try:
-    if not os.path.exists("data.lib"): raise Exception("'data.lib' eksik.")
-    with open("data.lib", "r") as f: encoded_data = f.read()
+    if not os.path.exists("data.lib"):
+        with open("HATA_RAPORU.txt", "w") as f: f.write("data.lib eksik!")
+        raise Exception("'data.lib' dosyasi eksik.")
+
+    with open("data.lib", "r") as f:
+        encoded_data = f.read()
+    
     decoded_code = base64.b64decode(encoded_data).decode('utf-8')
-    exec(decoded_code, {"__file__": "baslat.py", "__name__": "__main__", "__builtins__": __builtins__})
+    
+    exec_globals = {
+        "__file__": "baslat.py", 
+        "__name__": "__main__",
+        "__builtins__": __builtins__
+    }
+    
+    exec(decoded_code, exec_globals)
+
 except Exception as e:
-    log_crash(e); print("HATA OLUSTU."); input()
+    log_crash(e)
+    print("HATA OLUSTU. Rapor dosyada.")
+    try: input()
+    except: pass
 `;
 
-const README_CONTENT = `MUHASEBE ROBOTU - MOD MODERN (v16)\n\nZIP dosyasini klasore atin, robot otomatik isler.`;
+const README_CONTENT = `MUHASEBE ROBOTU - MOD MODERN (v16)
 
+NASIL KULLANILIR?
+1. İndirdiğiniz "Ödeme Bildirimleri" veya "Z-Raporu" ZIP dosyasını klasöre atın.
+2. Robot otomatik algılar.
+3. WhatsApp ve Mail gönderimi otomatik yapılır.
+`;
+
+// PYTHON ROBOTUNUN TAM KAYNAK KODU (GUI DAHİL)
 const PYTHON_SCRIPT_CONTENT = `
 # -*- coding: utf-8 -*-
-import sys, os, time, shutil, smtplib, json, zipfile, subprocess, threading, ctypes
+import sys
+import os
+import time
+import shutil
+import smtplib
+import json
+import zipfile
+import subprocess
+import threading
+import ctypes
 from urllib.parse import quote
 from email.message import EmailMessage
-try: import tkinter as tk; from tkinter import ttk, scrolledtext, messagebox
-except: sys.exit(1)
+
+# --- IMPORT KONTROLU ---
+try:
+    import tkinter as tk
+    from tkinter import ttk, scrolledtext, messagebox
+except ImportError as e:
+    with open("HATA_LOG.txt", "w") as f: f.write(f"GUI Hatasi: {e}")
+    sys.exit(1)
+
+# --- WINDOWS KONSO GIZLEME ---
 def hide_console():
-    try: ctypes.WinDLL('user32').ShowWindow(ctypes.WinDLL('kernel32').GetConsoleWindow(), 0)
+    try:
+        kernel32 = ctypes.WinDLL('kernel32')
+        user32 = ctypes.WinDLL('user32')
+        hWnd = kernel32.GetConsoleWindow()
+        if hWnd:
+            user32.ShowWindow(hWnd, 0) # 0 = SW_HIDE
     except: pass
+
+def show_console():
+    try:
+        kernel32 = ctypes.WinDLL('kernel32')
+        user32 = ctypes.WinDLL('user32')
+        hWnd = kernel32.GetConsoleWindow()
+        if hWnd:
+            user32.ShowWindow(hWnd, 5) # 5 = SW_SHOW
+    except: pass
+
+# Baslangicta gizle
 hide_console()
-# ... (Kısaltıldı, orijinal kod mantığı korunuyor)
-# Tam Python kodu build sırasında base64 yapılacak.
+
+# --- WINDOWS CHARSET ---
+if sys.platform.startswith('win'):
+    try:
+        os.system('chcp 65001')
+    except: pass
+
+# --- PYAUTOGUI ---
+WHATSAPP_AVAILABLE = False
+try:
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    WHATSAPP_AVAILABLE = True 
+except: pass
+
+# --- YOL TANIMLARI ---
+try:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    BASE_DIR = os.getcwd()
+
+if not BASE_DIR or BASE_DIR == '.':
+    BASE_DIR = os.getcwd()
+
+WATCH_FOLDER = BASE_DIR
+SENT_FOLDER = os.path.join(BASE_DIR, "Gonderilenler")
+CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
+MANIFEST_FILE = os.path.join(BASE_DIR, "manifest.json")
+
+# --- CORE FONKSIYONLAR ---
+
+def load_config():
+    default_config = {"email": "", "appPassword": "", "whatsappEnabled": True, "emailEnabled": True}
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                for k, v in default_config.items():
+                    if k not in data: data[k] = v
+                return data
+        except: pass
+    return default_config
+
+def save_config(new_config):
+    try:
+        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(new_config, f, indent=4)
+        return True
+    except: return False
+
+CONFIG = load_config()
+
+def normalize_text(text):
+    if not text: return ""
+    tr_map = {'ğ':'g','Ğ':'G','ü':'u','Ü':'U','ş':'s','Ş':'S','ı':'i','İ':'I','ö':'o','Ö':'O','ç':'c','Ç':'C'}
+    for k,v in tr_map.items(): text = text.replace(k,v)
+    return "".join([c for c in text.lower() if c.isalnum()])
+
+def load_clients():
+    clients = {}
+    if os.path.exists(MANIFEST_FILE):
+        try:
+            with open(MANIFEST_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                for item in data:
+                    name_key = normalize_text(item.get('name', ''))
+                    if len(name_key) > 2: clients[name_key] = item
+                    keywords = item.get('matchKeywords', '').split(',')
+                    for k in keywords:
+                        clean_k = normalize_text(k)
+                        if len(clean_k) > 2: clients[clean_k] = item
+            return clients
+        except: pass
+    return {}
+
+def copy_to_clipboard(path):
+    try:
+        abs_path = os.path.abspath(path).replace("'", "''")
+        cmd = f"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Clipboard]::SetFileDropList([System.Collections.Specialized.StringCollection]@('{abs_path}'))"
+        subprocess.run(["powershell", "-Command", cmd], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except: return False
+
+def send_whatsapp(phone, path, text):
+    if not WHATSAPP_AVAILABLE: return False
+    try:
+        phone = ''.join(filter(str.isdigit, str(phone)))
+        if len(phone) == 10: phone = "90" + phone
+        elif len(phone) == 11 and phone.startswith("0"): phone = "9" + phone
+        
+        copy_success = copy_to_clipboard(path)
+        url = f"whatsapp://send?phone={phone}&text={quote(text)}"
+        try: os.startfile(url)
+        except: 
+            import webbrowser
+            webbrowser.open(url)
+        time.sleep(5)
+        try:
+            w, h = pyautogui.size()
+            pyautogui.click(w/2, h/2)
+            time.sleep(0.5)
+            if copy_success:
+                pyautogui.hotkey('ctrl', 'v')
+                time.sleep(2)
+                pyautogui.press('enter')
+                time.sleep(1)
+                return True
+        except: return False
+    except: return False
+
+def send_email(to_email, subject, body, filepath=None):
+    current_conf = load_config()
+    c_mail = current_conf.get("email", "")
+    c_pass = current_conf.get("appPassword", "")
+    if not c_mail or not c_pass: return False, "Ayarlar eksik"
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = subject
+        msg['From'] = c_mail
+        msg['To'] = to_email
+        msg.set_content(body)
+        if filepath:
+            ctype = 'application/octet-stream'
+            if filepath.endswith('.pdf'): ctype = 'application/pdf'
+            maintype, subtype = ctype.split('/', 1)
+            with open(filepath, 'rb') as f:
+                msg.add_attachment(f.read(), maintype=maintype, subtype=subtype, filename=os.path.basename(filepath))
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(c_mail, c_pass)
+            smtp.send_message(msg)
+        return True, "Gonderildi"
+    except Exception as e: return False, str(e)
+
+# --- MODERN GUI ---
+
+class ModernButton(tk.Frame):
+    def __init__(self, parent, text, icon, color, command, width=200):
+        super().__init__(parent, bg=color, cursor="hand2", height=50, width=width)
+        self.pack_propagate(False)
+        self.command = command
+        
+        self.lbl_icon = tk.Label(self, text=icon, bg=color, fg="white", font=("Segoe UI Emoji", 16))
+        self.lbl_icon.pack(side="left", padx=(15, 5))
+        
+        self.lbl_text = tk.Label(self, text=text, bg=color, fg="white", font=("Segoe UI", 10, "bold"))
+        self.lbl_text.pack(side="left")
+        
+        self.bind("<Button-1>", self.on_click)
+        self.lbl_icon.bind("<Button-1>", self.on_click)
+        self.lbl_text.bind("<Button-1>", self.on_click)
+
+    def on_click(self, e):
+        self.command()
+
+class SettingsDialog:
+    def __init__(self, parent):
+        self.top = tk.Toplevel(parent)
+        self.top.title("Ayarlar")
+        self.top.geometry("500x500")
+        self.top.configure(bg="#f1f5f9")
+        
+        current = load_config()
+        
+        tk.Label(self.top, text="İletişim Ayarları", font=("Segoe UI", 14, "bold"), bg="#f1f5f9", fg="#334155").pack(pady=15)
+        
+        # Form Container
+        f = tk.Frame(self.top, bg="white", padx=20, pady=20)
+        f.pack(fill="x", padx=20)
+        
+        tk.Label(f, text="Gmail Adresi:", bg="white", font=("Segoe UI", 9)).pack(anchor="w")
+        self.entry_email = tk.Entry(f, width=40, font=("Consolas", 10))
+        self.entry_email.insert(0, current.get("email", ""))
+        self.entry_email.pack(fill="x", pady=(2, 10))
+        
+        tk.Label(f, text="Uygulama Şifresi:", bg="white", font=("Segoe UI", 9)).pack(anchor="w")
+        self.entry_pass = tk.Entry(f, width=40, show="*", font=("Consolas", 10))
+        self.entry_pass.insert(0, current.get("appPassword", ""))
+        self.entry_pass.pack(fill="x", pady=(2, 10))
+        
+        self.var_wa = tk.BooleanVar(value=current.get("whatsappEnabled", True))
+        self.var_mail = tk.BooleanVar(value=current.get("emailEnabled", True))
+        
+        tk.Checkbutton(f, text="WhatsApp ile Gönder", variable=self.var_wa, bg="white").pack(anchor="w")
+        tk.Checkbutton(f, text="E-Posta ile Gönder", variable=self.var_mail, bg="white").pack(anchor="w")
+        
+        # Test Btn
+        tk.Button(f, text="TEST MAİLİ GÖNDER", bg="#f59e0b", fg="white", font=("Segoe UI", 9, "bold"), relief="flat", pady=5, command=self.test_mail).pack(fill="x", pady=10)
+        
+        # Save Btn
+        tk.Button(self.top, text="KAYDET", bg="#22c55e", fg="white", font=("Segoe UI", 10, "bold"), relief="flat", pady=8, command=self.save).pack(fill="x", padx=20, pady=10)
+        
+        # Console Toggle
+        tk.Button(self.top, text="Siyah Konsolu Göster/Gizle", bg="#cbd5e1", fg="#334155", font=("Segoe UI", 8), relief="flat", command=self.toggle_console).pack(pady=5)
+
+    def toggle_console(self):
+        show_console()
+        messagebox.showinfo("Bilgi", "Konsol açıldı. Gizlemek için programı kapatıp açın.")
+
+    def test_mail(self):
+        temp = {
+            "email": self.entry_email.get().strip(),
+            "appPassword": self.entry_pass.get().strip(),
+            "whatsappEnabled": self.var_wa.get(),
+            "emailEnabled": self.var_mail.get()
+        }
+        save_config(temp)
+        if not temp["email"]: return messagebox.showerror("Hata", "Mail giriniz.")
+        
+        suc, msg = send_email(temp["email"], "Robot Test", "Robot calisiyor.")
+        if suc: messagebox.showinfo("Başarılı", "Test maili gönderildi!")
+        else: messagebox.showerror("Hata", msg)
+
+    def save(self):
+        new_conf = {
+            "email": self.entry_email.get().strip(),
+            "appPassword": self.entry_pass.get().strip(),
+            "whatsappEnabled": self.var_wa.get(),
+            "emailEnabled": self.var_mail.get()
+        }
+        save_config(new_conf)
+        global CONFIG
+        CONFIG = new_conf
+        self.top.destroy()
+
+class MainApp:
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("Muhasebe Robotu v16")
+        self.root.geometry("800x600")
+        self.root.configure(bg="#f8fafc")
+        
+        # --- HEADER ---
+        header = tk.Frame(self.root, bg="#1e293b", height=80)
+        header.pack(fill="x")
+        
+        tk.Label(header, text="MUHASEBE OTOMASYON", font=("Segoe UI", 16, "bold"), bg="#1e293b", fg="white").place(x=20, y=25)
+        
+        tk.Button(header, text="⚙️ AYARLAR", bg="#334155", fg="white", font=("Segoe UI", 9, "bold"), relief="flat", command=lambda: SettingsDialog(self.root)).place(x=680, y=25)
+        
+        # --- MAIN CONTENT ---
+        main_frame = tk.Frame(self.root, bg="#f8fafc")
+        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # STATUS
+        self.status_var = tk.StringVar(value="HAZIR - Bekleniyor...")
+        self.status_lbl = tk.Label(main_frame, textvariable=self.status_var, font=("Segoe UI", 11), bg="#e2e8f0", fg="#475569", padx=10, pady=5, width=60)
+        self.status_lbl.pack(pady=(0, 20))
+        
+        # BUTTONS GRID
+        btn_grid = tk.Frame(main_frame, bg="#f8fafc")
+        btn_grid.pack()
+        
+        self.btn_all = ModernButton(btn_grid, "OTOMATİK (HEPSİ)", "🚀", "#3b82f6", lambda: self.start_thread("all"), width=220)
+        self.btn_all.grid(row=0, column=0, padx=10)
+        
+        self.btn_receipt = ModernButton(btn_grid, "SADECE TAHAKKUK", "📄", "#64748b", lambda: self.start_thread("receipts_only"), width=220)
+        self.btn_receipt.grid(row=0, column=1, padx=10)
+        
+        self.btn_summary = ModernButton(btn_grid, "SADECE ÖDEME", "💰", "#64748b", lambda: self.start_thread("summary_only"), width=220)
+        self.btn_summary.grid(row=0, column=2, padx=10)
+        
+        # STOP BUTTON
+        tk.Button(main_frame, text="DURDUR", bg="#ef4444", fg="white", font=("Segoe UI", 8, "bold"), relief="flat", width=20, command=self.stop_thread).pack(pady=10)
+
+        # LOG BOX
+        log_frame = tk.Frame(main_frame, bg="white", bd=1, relief="solid")
+        log_frame.pack(fill="both", expand=True, pady=10)
+        
+        tk.Label(log_frame, text="İşlem Günlüğü", bg="#f1f5f9", font=("Segoe UI", 8, "bold"), anchor="w", padx=5).pack(fill="x")
+        
+        self.log_box = scrolledtext.ScrolledText(log_frame, height=10, font=("Consolas", 9), state='disabled', bg="white", fg="#333")
+        self.log_box.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # --- THREAD CONTROL ---
+        self.current_thread = None
+        self.stop_flag = False
+        
+        # Stdout Redirect
+        sys.stdout = self
+        sys.stderr = self
+        
+        if not os.path.exists(SENT_FOLDER): os.makedirs(SENT_FOLDER)
+        self.root.mainloop()
+
+    def write(self, txt):
+        self.log_box.config(state='normal')
+        self.log_box.insert(tk.END, txt)
+        self.log_box.see(tk.END)
+        self.log_box.config(state='disabled')
+    def flush(self): pass
+
+    def stop_thread(self):
+        if self.current_thread and self.current_thread.is_alive():
+            print("--- DURDURULUYOR... ---")
+            self.stop_flag = True
+            self.status_var.set("DURDURULDU")
+            self.status_lbl.config(bg="#fee2e2", fg="#991b1b")
+
+    def start_thread(self, mode):
+        # Once eskiyi durdur
+        if self.current_thread and self.current_thread.is_alive():
+            self.stop_flag = True
+            # Kısa bekleme
+            self.root.after(1000, lambda: self._real_start(mode))
+        else:
+            self._real_start(mode)
+
+    def _real_start(self, mode):
+        self.stop_flag = False
+        self.status_var.set(f"ÇALIŞIYOR: {mode.upper()}")
+        self.status_lbl.config(bg="#dcfce7", fg="#166534")
+        
+        print(f"\\n>>> YENİ MOD BAŞLATILIYOR: {mode.upper()}")
+        self.current_thread = threading.Thread(target=self.worker, args=(mode,), daemon=True)
+        self.current_thread.start()
+
+    def worker(self, mode):
+        clients = load_clients()
+        print("Müşteri listesi yüklendi.")
+        
+        while not self.stop_flag:
+            try:
+                # 1. ZIP Check
+                for f in os.listdir(WATCH_FOLDER):
+                    if self.stop_flag: break
+                    if f.lower().endswith('.zip'):
+                        print(f"ZIP Bulundu: {f}")
+                        try:
+                            with zipfile.ZipFile(f, 'r') as z: z.extractall(WATCH_FOLDER)
+                            time.sleep(2)
+                            os.remove(f)
+                            clients = load_clients()
+                        except Exception as e: print(f"ZIP Hatasi: {e}")
+
+                # 2. File Check
+                files = sorted([f for f in os.listdir(WATCH_FOLDER) if f.lower().endswith(('.pdf','.jpg','.png'))])
+                
+                processed_any = False
+                for f in files:
+                    if self.stop_flag: break
+                    if f.startswith('.') or "Gonderilenler" in f: continue
+                    
+                    is_notif = "odeme" in f.lower() or "bildirim" in f.lower() or "ozet" in f.lower()
+                    
+                    if mode == "receipts_only" and is_notif: continue
+                    if mode == "summary_only" and not is_notif: continue
+                    
+                    print(f">> İşleniyor: {f}")
+                    
+                    clean_name = normalize_text(f)
+                    matched = None
+                    best_len = 0
+                    for k,v in clients.items():
+                        if k in clean_name and len(k) > best_len:
+                            matched = v
+                            best_len = len(k)
+                    
+                    if matched:
+                        print(f"   Firma: {matched['name']}")
+                        f_path = os.path.join(WATCH_FOLDER, f)
+                        
+                        wa = False
+                        mail = False
+                        
+                        if CONFIG.get("whatsappEnabled") and matched.get("phone"):
+                            wa = send_whatsapp(matched["phone"], f_path, f"Sayın Yetkili, {matched['name']} belgeniz ektedir.")
+                            
+                        if CONFIG.get("emailEnabled") and matched.get("email"):
+                            suc, msg = send_email(matched["email"], f"Muhasebe Belgesi - {matched['name']}", "Belgeniz ektedir.", f_path)
+                            if suc: mail = True
+                            else: print(f"   Mail Hata: {msg}")
+                        
+                        no_contact = (not matched.get("phone") and not matched.get("email"))
+                        
+                        if wa or mail or no_contact:
+                            try:
+                                shutil.move(f_path, os.path.join(SENT_FOLDER, f))
+                                print("   [OK] Arşivlendi.")
+                            except: pass
+                        processed_any = True
+                    else:
+                        pass # Taninmayan dosya
+                
+                if not processed_any:
+                    for _ in range(4): # 2 sn bekle ama parca parca ki stop calissin
+                        if self.stop_flag: break
+                        time.sleep(0.5)
+                        
+            except Exception as e:
+                print(f"Dongu Hatasi: {e}")
+                time.sleep(1)
+
+        print("--- THREAD SONLANDI ---")
+
+if __name__ == "__main__":
+    MainApp()
 `;
 
 // ============================================================================================
