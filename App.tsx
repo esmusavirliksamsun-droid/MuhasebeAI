@@ -677,10 +677,9 @@ const getAIClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 const fileToPart = async (file: File) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => {
-      if (reader.result) {
-          const base64Data = (reader.result as string).split(',')[1];
-          // GÜVENLİ MIME TYPE ALGILAMA
+    reader.onload = () => {
+      if (reader.result && typeof reader.result === 'string') {
+          const base64Data = reader.result.split(',')[1];
           let mimeType = file.type;
           const ext = file.name.split('.').pop()?.toLowerCase();
           
@@ -688,25 +687,36 @@ const fileToPart = async (file: File) => {
               if (ext === 'pdf') mimeType = 'application/pdf';
               else if (['jpg', 'jpeg'].includes(ext || '')) mimeType = 'image/jpeg';
               else if (['png'].includes(ext || '')) mimeType = 'image/png';
-              else mimeType = 'application/pdf'; // Varsayılan olarak PDF kabul et
+              else mimeType = 'application/pdf'; 
           }
           
           resolve({ inlineData: { data: base64Data, mimeType: mimeType } });
-      } else reject(new Error("Dosya okunamadı."));
+      } else reject(new Error("Dosya verisi boş."));
     };
-    reader.onerror = reject;
+    reader.onerror = () => reject(new Error("Dosya okunamadı."));
     reader.readAsDataURL(file);
   });
 };
 
 const cleanAndParseJSON = (text: string) => {
     try {
+        if (!text) throw new Error("Boş yanıt");
         let cleanText = text.replace(/```json|```/g, '').trim();
         const firstBracket = cleanText.indexOf('[');
         const lastBracket = cleanText.lastIndexOf(']');
         if (firstBracket !== -1 && lastBracket !== -1) cleanText = cleanText.substring(firstBracket, lastBracket + 1);
-        return JSON.parse(cleanText);
-    } catch (e) { return []; }
+        else {
+             const firstBrace = cleanText.indexOf('{');
+             const lastBrace = cleanText.lastIndexOf('}');
+             if (firstBrace !== -1 && lastBrace !== -1) cleanText = "[" + cleanText.substring(firstBrace, lastBrace + 1) + "]";
+        }
+        
+        const res = JSON.parse(cleanText);
+        return Array.isArray(res) ? res : [res];
+    } catch (e) { 
+        console.error("Parse Error:", text);
+        throw e; 
+    }
 };
 
 const safeParseFloat = (value: any): number => {
@@ -725,8 +735,8 @@ const processZReportImage = async (file: File, isTest: boolean): Promise<ZReport
       const part = await fileToPart(file);
       const ai = getAIClient();
       const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: [{ parts: [part as any, { text: SYSTEM_INSTRUCTION }] }] });
-      const rawData = cleanAndParseJSON(response.text || "[]");
-      const dataArray = Array.isArray(rawData) ? rawData : [rawData];
+      const dataArray = cleanAndParseJSON(response.text || "[]");
+      if (dataArray.length === 0) throw new Error("Veri bulunamadı");
 
       return dataArray.map(item => ({
         id: crypto.randomUUID(), fileName: file.name, date: item.date || "-", zReportNo: item.zReportNo || "-",
@@ -746,8 +756,8 @@ const processTaxDocument = async (file: File, isTest: boolean): Promise<TaxDocum
         const part = await fileToPart(file);
         const ai = getAIClient();
         const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: [{ parts: [part as any, { text: TAX_SYSTEM_INSTRUCTION }] }] });
-        const rawData = cleanAndParseJSON(response.text || "[]");
-        const dataArray = Array.isArray(rawData) ? rawData : [rawData];
+        const dataArray = cleanAndParseJSON(response.text || "[]");
+        if (dataArray.length === 0) throw new Error("Veri bulunamadı");
 
         return dataArray.map(item => ({
             id: crypto.randomUUID(), fileName: file.name, companyName: item.companyName || "Tanımsız",
@@ -756,7 +766,7 @@ const processTaxDocument = async (file: File, isTest: boolean): Promise<TaxDocum
             dueDate: item.dueDate, status: 'success', originalFile: file
         }));
     } catch {
-        return [{ id: crypto.randomUUID(), fileName: file.name, companyName: "HATA", taxType: "DIGER", amount: 0, period: "-", referenceNumber: "-", status: 'error', originalFile: file }];
+        return [{ id: crypto.randomUUID(), fileName: file.name, companyName: "HATA - OKUNAMADI", taxType: "DIGER", amount: 0, period: "-", referenceNumber: "-", status: 'error', originalFile: file }];
     }
 };
 
@@ -799,7 +809,7 @@ const ResultTable: React.FC<ResultTableProps> = ({ data, onUpdateItem, onEditDet
         <thead className="bg-slate-200 font-semibold"><tr><th className="p-2">#</th><th className="p-2">Firma/POS</th><th className="p-2">Tarih</th><th className="p-2">No</th><th className="p-2 text-right">Tutar</th><th className="p-2 text-right">Kasa</th><th className="p-2 text-right">K.Kartı</th><th className="p-2"></th></tr></thead>
         <tbody>
             {data.map((row, i) => (
-                <tr key={row.id} className="border-b hover:bg-slate-50">
+                <tr key={row.id} className={`border-b hover:bg-slate-50 ${row.status === 'error' ? 'bg-red-50' : ''}`}>
                     <td className="p-2">{i+1}</td>
                     <td className="p-2"><input value={row.posName} onChange={e=>onUpdateItem(row.id,'posName',e.target.value)} className="w-full bg-transparent"/></td>
                     <td className="p-2"><input value={row.date} onChange={e=>onUpdateItem(row.id,'date',e.target.value)} className="w-full bg-transparent"/></td>
@@ -1263,7 +1273,7 @@ function App() {
               const enrichedResults = results.map(item => {
                   const normalize = (s: string) => s.replace(/[^a-zA-Z0-9ğüşıöçĞÜŞİÖÇ]/g, "").toLowerCase();
                   let match = currentCompanies.find(c => normalize(c.name) === normalize(item.companyName) || normalize(item.companyName).includes(normalize(c.name)));
-                  if (!match && item.companyName && item.companyName.length > 2 && item.companyName !== "Tanımsız" && item.companyName !== "HATA") {
+                  if (!match && item.companyName && item.companyName.length > 2 && item.companyName !== "Tanımsız" && !item.companyName.includes("HATA")) {
                       const newCompany: Company = { id: crypto.randomUUID(), name: item.companyName, matchKeywords: item.companyName };
                       currentCompanies.push(newCompany); match = newCompany; companiesChanged = true;
                   }
@@ -1307,7 +1317,7 @@ function App() {
         </div>
 
         <div className="bg-white rounded-2xl p-10 shadow-xl border border-slate-200">
-          <UploadSection onFilesSelected={handleFiles} disabled={isProcessing} />
+          <UploadSection key={activeMode} onFilesSelected={handleFiles} disabled={isProcessing} />
           {isProcessing && <div className="mt-4 text-center text-blue-600 font-medium animate-pulse">Belgeler Analiz Ediliyor...</div>}
           {((activeMode === 'zreport' && zItems.length > 0) || (activeMode === 'tax' && taxItems.length > 0)) && (
             <div className="mt-8 flex justify-end gap-4">
