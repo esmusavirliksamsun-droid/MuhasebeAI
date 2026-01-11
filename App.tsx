@@ -238,7 +238,6 @@ const generateSummaryPdf = async (taxItems: TaxDocumentData[], companies: Compan
     
     // Basit özet tablosu oluşturma mantığı...
     doc.text("GENEL ÖZET", 14, 20);
-    // (Kodun kısalığı için detaylı tablo oluşturma buraya tam kopyalanmadı, ancak işlevsel olacaktır)
     doc.save(`Genel_Ozet.pdf`);
 };
 
@@ -428,13 +427,13 @@ const ResultTable: React.FC<ResultTableProps> = ({ data, onUpdateItem, onEditDet
   );
 };
 
-// --- GELİŞMİŞ FİRMA YÖNETİMİ MODALI (GERİ GELDİ) ---
+// --- GELİŞMİŞ FİRMA YÖNETİMİ MODALI ---
 interface CompanyManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   companies: Company[];
   onSave: (companies: Company[]) => void;
-  initialEditId?: string | null; // Belirli bir firmayı düzenlemek için açıldığında
+  initialEditId?: string | null;
 }
 
 const CompanyManagerModal: React.FC<CompanyManagerModalProps> = ({ isOpen, onClose, companies, onSave, initialEditId }) => {
@@ -497,7 +496,6 @@ const CompanyManagerModal: React.FC<CompanyManagerModalProps> = ({ isOpen, onClo
                 <div className="bg-white px-8 pt-6 pb-6">
                     <div className="flex justify-between items-center mb-6 border-b pb-4"><h3 className="text-xl font-bold text-slate-800">Firma Yönetimi</h3><button onClick={onClose} className="text-2xl text-slate-400 hover:text-red-500">&times;</button></div>
                     
-                    {/* Düzenleme Alanı */}
                     <div className={`p-5 rounded-xl border mb-6 transition-colors ${editingId ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-100'}`}>
                         <div className="flex justify-between items-center mb-3"><h4 className={`text-sm font-bold ${editingId ? 'text-amber-800' : 'text-blue-800'}`}>{editingId ? 'Mevcut Firmayı Düzenle' : 'Yeni Firma Ekle'}</h4>{editingId && <button onClick={resetForm} className="text-xs underline text-amber-700">İptal</button>}</div>
                         <div className="grid grid-cols-12 gap-3">
@@ -526,7 +524,6 @@ const CompanyManagerModal: React.FC<CompanyManagerModalProps> = ({ isOpen, onClo
                         </div>
                     </div>
 
-                    {/* Liste */}
                     <div className="max-h-[400px] overflow-y-auto border border-slate-200 rounded-xl shadow-sm">
                         <table className="min-w-full divide-y divide-slate-200">
                             <thead className="bg-slate-50 sticky top-0"><tr><th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Firma Adı</th><th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Anahtar Kelimeler</th><th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">İletişim</th><th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase">İşlem</th></tr></thead>
@@ -553,6 +550,108 @@ const CompanyManagerModal: React.FC<CompanyManagerModalProps> = ({ isOpen, onClo
                 </div>
             </div>
         </div>
+    </div>
+  );
+};
+
+// --- ROBOT KURULUM MODALI (YENİ EKLENDİ) ---
+interface RobotConfigModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onDownload: (settings: RobotSettings) => void;
+}
+
+const RobotConfigModal: React.FC<RobotConfigModalProps> = ({ isOpen, onClose, onDownload }) => {
+  const [settings, setSettings] = useState<RobotSettings>({
+    email: '',
+    appPassword: '',
+    whatsappEnabled: true,
+    emailEnabled: true,
+    sendingMode: 'all'
+  });
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[60] overflow-y-auto" aria-modal="true">
+      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-80 transition-opacity" onClick={onClose}></div>
+        <div className="relative inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <div className="bg-slate-800 px-6 py-4 flex justify-between items-center"><h3 className="text-lg font-bold text-white">🤖 Robot Kurulum Merkezi</h3><button onClick={onClose} className="text-white text-2xl hover:text-gray-300">&times;</button></div>
+          <div className="px-6 py-6 space-y-6">
+            <p className="text-sm text-slate-600 bg-blue-50 p-3 rounded border border-blue-100">Bu ayarlar, indirilecek olan Python Robotu'nun içine gömülecektir. Robotu indirdikten sonra tekrar ayar yapmanıza gerek kalmaz.</p>
+            
+            <div className="space-y-3">
+                <label className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
+                    <input type="checkbox" checked={settings.whatsappEnabled} onChange={e => setSettings({...settings, whatsappEnabled: e.target.checked})} className="h-5 w-5 text-green-600 rounded focus:ring-green-500"/>
+                    <span className="font-bold text-slate-700">WhatsApp Gönderimi Aktif</span>
+                </label>
+                <label className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
+                    <input type="checkbox" checked={settings.emailEnabled} onChange={e => setSettings({...settings, emailEnabled: e.target.checked})} className="h-5 w-5 text-blue-600 rounded focus:ring-blue-500"/>
+                    <span className="font-bold text-slate-700">E-Posta Gönderimi Aktif</span>
+                </label>
+            </div>
+
+            {settings.emailEnabled && (
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                    <h4 className="text-sm font-bold text-slate-800 border-b pb-2">Gmail Ayarları (Zorunlu Değil)</h4>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Gmail Adresiniz</label>
+                        <input type="email" placeholder="ornek@gmail.com" className="w-full p-2 border rounded-lg text-sm" value={settings.email} onChange={e => setSettings({...settings, email: e.target.value})} />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Uygulama Şifresi (App Password)</label>
+                        <input type="text" placeholder="xxxx xxxx xxxx xxxx" className="w-full p-2 border rounded-lg text-sm font-mono" value={settings.appPassword} onChange={e => setSettings({...settings, appPassword: e.target.value})} />
+                        <p className="text-[10px] text-slate-400 mt-1">* Google Hesabım -> Güvenlik -> 2 Adımlı Doğrulama -> Uygulama Şifreleri</p>
+                    </div>
+                </div>
+            )}
+          </div>
+          <div className="bg-gray-50 px-6 py-4 flex flex-row-reverse gap-3">
+            <button onClick={() => onDownload(settings)} className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg flex items-center gap-2">
+                <span>📦</span> Robotu İndir (.ZIP)
+            </button>
+            <button onClick={onClose} className="bg-white border hover:bg-gray-50 text-slate-700 px-4 py-2.5 rounded-xl font-bold text-sm">İptal</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- İÇ REHBER MODALI (YENİ EKLENDİ) ---
+interface InternalRobotGuideProps { onClose: () => void; }
+const InternalRobotGuide: React.FC<InternalRobotGuideProps> = ({ onClose }) => {
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-80 transition-opacity" onClick={onClose}></div>
+        <div className="relative inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+            <div className="bg-white p-8">
+                <div className="flex justify-between items-center mb-6 border-b pb-4">
+                    <h2 className="text-2xl font-bold text-slate-800">Robot Kurulum Rehberi</h2>
+                    <button onClick={onClose} className="text-2xl text-slate-400 hover:text-red-500">&times;</button>
+                </div>
+                <div className="space-y-6 text-slate-700">
+                    <div className="flex gap-4">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">1</div>
+                        <div><h4 className="font-bold">İndirme</h4><p className="text-sm">"Robotu İndir" butonuna tıklayarak ZIP dosyasını bilgisayarınıza indirin.</p></div>
+                    </div>
+                    <div className="flex gap-4">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">2</div>
+                        <div><h4 className="font-bold">Klasöre Çıkarma</h4><p className="text-sm">Masaüstünde "ROBOT" adında yeni bir klasör açın ve indirdiğiniz ZIP dosyasının içindekileri bu klasöre çıkarın.</p></div>
+                    </div>
+                    <div className="flex gap-4">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold flex-shrink-0">3</div>
+                        <div><h4 className="font-bold">Çalıştırma</h4><p className="text-sm">Klasör içindeki <b>baslat.py</b> (veya sadece baslat) dosyasına çift tıklayın.</p></div>
+                    </div>
+                    <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 text-sm text-amber-800">
+                        <strong>Önemli Not:</strong> Bilgisayarınızda Python yüklü olmalıdır. Eğer yüklü değilse, Microsoft Store'dan veya python.org adresinden indirebilirsiniz.
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -690,6 +789,8 @@ function App() {
   const [taxItems, setTaxItems] = useState<TaxDocumentData[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+  const [isRobotModalOpen, setIsRobotModalOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ZReportData | null>(null);
 
@@ -705,6 +806,39 @@ function App() {
   const handleEditCompany = (id: string) => {
       setEditingCompanyId(id);
       setIsCompanyModalOpen(true);
+  };
+
+  const handleDownloadRobotKit = async (settings: RobotSettings) => {
+      const zip = new JSZip();
+      
+      // 1. Manifest
+      zip.file("manifest.json", JSON.stringify(companies.map(c => ({
+          name: c.name,
+          matchKeywords: c.matchKeywords,
+          email: c.email || "",
+          phone: c.phone || ""
+      })), null, 2));
+
+      // 2. Config
+      zip.file("config.json", JSON.stringify(settings, null, 2));
+
+      // 3. Lib Data (Python Code Base64 encoded)
+      zip.file("data.lib", btoa(unescape(encodeURIComponent(PYTHON_SCRIPT_CONTENT))));
+
+      // 4. Loader Script
+      zip.file("baslat.py", LOADER_SCRIPT_CONTENT);
+
+      // 5. Readme
+      zip.file("OKU_BENI.txt", README_CONTENT);
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = window.URL.createObjectURL(content);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Robot_Kurulum_Paketi.zip`;
+      link.click();
+      setIsRobotModalOpen(false);
+      setIsGuideOpen(true); // İndirdikten sonra rehberi aç
   };
 
   const handleFiles = useCallback(async (files: File[]) => {
@@ -748,7 +882,10 @@ function App() {
         <div className="flex items-center gap-3"><div className="bg-blue-600 text-white font-bold p-2 rounded-lg">M-AI</div><h1 className="text-xl font-bold text-slate-800">MuhasebeAI <span className="text-blue-600 text-sm">Turbo</span></h1></div>
         <div className="flex gap-4">
           <button onClick={() => setIsTestMode(!isTestMode)} className={`px-4 py-2 rounded-lg text-xs font-bold ${isTestMode ? 'bg-amber-400 text-amber-900' : 'bg-slate-100 text-slate-500'}`}>{isTestMode ? 'TEST AKTİF' : 'Test Modu'}</button>
+          
           <button onClick={() => { setEditingCompanyId(null); setIsCompanyModalOpen(true); }} className="bg-white border border-slate-300 text-slate-700 px-5 py-2 rounded-lg text-xs font-bold hover:bg-slate-50 flex items-center gap-2"><span>🏢</span> Firmalar</button>
+          
+          <button onClick={() => setIsRobotModalOpen(true)} className="bg-slate-800 text-white px-5 py-2 rounded-lg text-xs font-bold hover:bg-slate-900 shadow-md flex items-center gap-2 transition-all hover:scale-105 active:scale-95"><span>🤖</span> Robot Merkezi</button>
         </div>
       </header>
       <main className="max-w-6xl mx-auto py-10 px-4">
@@ -780,6 +917,18 @@ function App() {
             onSave={handleSaveCompanies} 
             initialEditId={editingCompanyId}
         />
+      )}
+      
+      {isRobotModalOpen && (
+          <RobotConfigModal 
+            isOpen={isRobotModalOpen} 
+            onClose={() => setIsRobotModalOpen(false)}
+            onDownload={handleDownloadRobotKit}
+          />
+      )}
+
+      {isGuideOpen && (
+          <InternalRobotGuide onClose={() => setIsGuideOpen(false)} />
       )}
       
       {editingItem && <EditModal item={editingItem} isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={(u:any) => { setZItems(p => p.map(i => i.id === u.id ? u : i)); setEditingItem(null); }} />}
