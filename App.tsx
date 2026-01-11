@@ -428,20 +428,150 @@ const ResultTable: React.FC<ResultTableProps> = ({ data, onUpdateItem, onEditDet
   );
 };
 
-interface TaxTableProps { data: TaxDocumentData[]; companies: Company[]; }
-const TaxDashboard: React.FC<TaxTableProps> = ({ data, companies }) => {
+// --- GELİŞMİŞ FİRMA YÖNETİMİ MODALI (GERİ GELDİ) ---
+interface CompanyManagerModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  companies: Company[];
+  onSave: (companies: Company[]) => void;
+  initialEditId?: string | null; // Belirli bir firmayı düzenlemek için açıldığında
+}
+
+const CompanyManagerModal: React.FC<CompanyManagerModalProps> = ({ isOpen, onClose, companies, onSave, initialEditId }) => {
+  const [localCompanies, setLocalCompanies] = useState<Company[]>(companies);
+  const [newCompany, setNewCompany] = useState<Partial<Company>>({ name: '', matchKeywords: '', email: '', phone: '' });
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  useEffect(() => {
+      setLocalCompanies(companies);
+      if (initialEditId) {
+          const found = companies.find(c => c.id === initialEditId);
+          if (found) startEditing(found);
+      }
+  }, [companies, initialEditId]);
+
+  if (!isOpen) return null;
+
+  const resetForm = () => { setNewCompany({ name: '', matchKeywords: '', email: '', phone: '' }); setEditingId(null); };
+
+  const handleAdd = () => {
+    if (newCompany.name) {
+      const company: Company = { 
+          id: crypto.randomUUID(), 
+          name: newCompany.name || "", 
+          matchKeywords: newCompany.matchKeywords || newCompany.name || "", 
+          email: newCompany.email || "", 
+          phone: newCompany.phone || "" 
+      };
+      const updated = [...localCompanies, company];
+      setLocalCompanies(updated); onSave(updated); resetForm();
+    }
+  };
+
+  const handleUpdate = () => {
+      if (newCompany.name && editingId) {
+          const updated = localCompanies.map(c => c.id === editingId ? { ...c, name: newCompany.name!, matchKeywords: newCompany.matchKeywords!, email: newCompany.email, phone: newCompany.phone } : c);
+          setLocalCompanies(updated); onSave(updated); resetForm();
+      }
+  };
+
+  const startEditing = (company: Company) => {
+      setNewCompany({ name: company.name, matchKeywords: company.matchKeywords, email: company.email || "", phone: company.phone || "" });
+      setEditingId(company.id);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm("Silmek istediğinize emin misiniz?")) {
+        const updated = localCompanies.filter(c => c.id !== id);
+        setLocalCompanies(updated); onSave(updated);
+        if (editingId === id) resetForm();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+        <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={onClose}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div className="relative inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full">
+                <div className="bg-white px-8 pt-6 pb-6">
+                    <div className="flex justify-between items-center mb-6 border-b pb-4"><h3 className="text-xl font-bold text-slate-800">Firma Yönetimi</h3><button onClick={onClose} className="text-2xl text-slate-400 hover:text-red-500">&times;</button></div>
+                    
+                    {/* Düzenleme Alanı */}
+                    <div className={`p-5 rounded-xl border mb-6 transition-colors ${editingId ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-100'}`}>
+                        <div className="flex justify-between items-center mb-3"><h4 className={`text-sm font-bold ${editingId ? 'text-amber-800' : 'text-blue-800'}`}>{editingId ? 'Mevcut Firmayı Düzenle' : 'Yeni Firma Ekle'}</h4>{editingId && <button onClick={resetForm} className="text-xs underline text-amber-700">İptal</button>}</div>
+                        <div className="grid grid-cols-12 gap-3">
+                            <div className="col-span-3">
+                                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Firma Adı</label>
+                                <input className="w-full p-2 border rounded-lg text-sm" value={newCompany.name} onChange={e => setNewCompany({...newCompany, name: e.target.value})} placeholder="Örn: ABC İnşaat" />
+                            </div>
+                            <div className="col-span-3">
+                                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Eşleşme Kelimesi</label>
+                                <input className="w-full p-2 border rounded-lg text-sm" value={newCompany.matchKeywords} onChange={e => setNewCompany({...newCompany, matchKeywords: e.target.value})} placeholder="Örn: ABC" />
+                            </div>
+                            <div className="col-span-2">
+                                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">E-Posta</label>
+                                <input className="w-full p-2 border rounded-lg text-sm" value={newCompany.email} onChange={e => setNewCompany({...newCompany, email: e.target.value})} placeholder="mail@site.com" />
+                            </div>
+                            <div className="col-span-2">
+                                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Telefon (905...)</label>
+                                <input className="w-full p-2 border rounded-lg text-sm" value={newCompany.phone} onChange={e => setNewCompany({...newCompany, phone: e.target.value})} placeholder="905xxxxxxxxx" />
+                            </div>
+                            <div className="col-span-2 flex items-end">
+                                {editingId ? 
+                                    <button onClick={handleUpdate} className="w-full bg-amber-600 hover:bg-amber-700 text-white p-2 rounded-lg font-bold text-sm transition-colors">GÜNCELLE</button> : 
+                                    <button onClick={handleAdd} className="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg font-bold text-sm transition-colors">EKLE +</button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Liste */}
+                    <div className="max-h-[400px] overflow-y-auto border border-slate-200 rounded-xl shadow-sm">
+                        <table className="min-w-full divide-y divide-slate-200">
+                            <thead className="bg-slate-50 sticky top-0"><tr><th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Firma Adı</th><th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Anahtar Kelimeler</th><th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">İletişim</th><th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase">İşlem</th></tr></thead>
+                            <tbody className="bg-white divide-y divide-slate-200">
+                                {localCompanies.map(c => (
+                                    <tr key={c.id} className={`hover:bg-slate-50 ${editingId === c.id ? 'bg-amber-50' : ''}`}>
+                                        <td className="px-6 py-4 text-sm font-semibold text-slate-800">{c.name}</td>
+                                        <td className="px-6 py-4 text-sm text-slate-600">{c.matchKeywords}</td>
+                                        <td className="px-6 py-4 text-xs text-slate-500">
+                                            {c.email && <div className="flex items-center gap-1">✉️ {c.email}</div>}
+                                            {c.phone && <div className="flex items-center gap-1">📱 {c.phone}</div>}
+                                            {!c.email && !c.phone && <span className="text-slate-300">-</span>}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button onClick={() => startEditing(c)} className="text-blue-600 hover:text-blue-800 mr-3 font-medium text-xs">Düzenle</button>
+                                            <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:text-red-800 font-medium text-xs">Sil</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {localCompanies.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-slate-400">Henüz firma eklenmemiş.</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+  );
+};
+
+interface TaxTableProps { data: TaxDocumentData[]; companies: Company[]; onEditCompany: (companyId: string) => void; }
+const TaxDashboard: React.FC<TaxTableProps> = ({ data, companies, onEditCompany }) => {
     const { tableRows, activeColumns, columnTotals } = useMemo(() => {
         const map = new Map();
         const cols = new Set<string>();
-        companies.forEach(c => map.set(c.id, { id: c.id, name: c.name, taxes: {}, total: 0 }));
+        companies.forEach(c => map.set(c.id, { id: c.id, name: c.name, taxes: {}, total: 0, isRegistered: true }));
         data.forEach(d => {
             let key = d.companyId;
+            let isReg = true;
             if(!key) {
-                // Basit eşleştirme
                 const found = companies.find(c => c.name.toLowerCase().includes(d.companyName.toLowerCase()));
                 key = found ? found.id : d.companyName;
+                if(!found) isReg = false;
             }
-            if(!map.has(key)) map.set(key, { id: key, name: d.companyName, taxes: {}, total: 0 });
+            if(!map.has(key)) map.set(key, { id: key, name: d.companyName, taxes: {}, total: 0, isRegistered: isReg });
             const entry = map.get(key);
             cols.add(d.taxType);
             if(!entry.taxes[d.taxType]) entry.taxes[d.taxType] = [];
@@ -494,8 +624,18 @@ const TaxDashboard: React.FC<TaxTableProps> = ({ data, companies }) => {
                 </thead>
                 <tbody>
                     {tableRows.map((row, i) => (
-                        <tr key={i} className="border-b hover:bg-slate-50">
-                            <td className="p-2 font-bold">{row.name}</td>
+                        <tr key={i} className="border-b hover:bg-slate-50 group">
+                            <td className="p-2 font-bold text-slate-800">
+                                <div className="flex items-center gap-2">
+                                    {row.name}
+                                    {row.isRegistered && (
+                                        <button onClick={() => onEditCompany(row.id)} className="text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="İletişim Bilgilerini Düzenle">
+                                            ✏️
+                                        </button>
+                                    )}
+                                    {!row.isRegistered && <span className="text-[9px] bg-amber-100 text-amber-800 px-1 rounded">YENİ</span>}
+                                </div>
+                            </td>
                             {activeColumns.map(c => {
                                 const items = row.taxes[c];
                                 if(!items) return <td key={c} className="p-2 text-right text-slate-300">-</td>;
@@ -519,7 +659,7 @@ const TaxDashboard: React.FC<TaxTableProps> = ({ data, companies }) => {
     );
 };
 
-// Basit Modallar (Yer Tutucu olarak, kod kalabalığını azaltmak için mantık aynı)
+// Basit Z-Raporu Düzenleme Modalı
 const EditModal: React.FC<any> = ({item, isOpen, onClose, onSave}) => {
     const [val, setVal] = useState<any>(item);
     useEffect(()=>setVal(item),[item]);
@@ -527,29 +667,12 @@ const EditModal: React.FC<any> = ({item, isOpen, onClose, onSave}) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="bg-white p-6 rounded w-96">
-                <h3 className="font-bold mb-4">Düzenle</h3>
-                <label className="block text-xs">Tutar</label>
+                <h3 className="font-bold mb-4">Z-Raporu Düzenle</h3>
+                <label className="block text-xs font-bold mb-1">Toplam Tutar</label>
                 <input type="number" value={val?.totalSales} onChange={e=>setVal({...val, totalSales: parseFloat(e.target.value)})} className="border w-full p-2 mb-2"/>
-                <div className="flex gap-2 justify-end">
-                    <button onClick={onClose} className="px-4 py-2 border rounded">İptal</button>
-                    <button onClick={()=>{onSave(val); onClose();}} className="px-4 py-2 bg-blue-600 text-white rounded">Kaydet</button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const CompanyManagerModal: React.FC<any> = ({isOpen, onClose, companies, onSave}) => {
-    const [list, setList] = useState(companies);
-    const [name, setName] = useState("");
-    if(!isOpen) return null;
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white p-6 rounded w-[600px] h-[500px] flex flex-col">
-                <div className="flex justify-between mb-4"><h3 className="font-bold">Firmalar</h3><button onClick={onClose}>X</button></div>
-                <div className="flex gap-2 mb-4"><input value={name} onChange={e=>setName(e.target.value)} placeholder="Firma Adı" className="border p-2 flex-1"/><button onClick={()=>{const n={id:crypto.randomUUID(),name, matchKeywords:name}; const l=[...list,n]; setList(l); onSave(l); setName("");}} className="bg-green-600 text-white px-4 rounded">Ekle</button></div>
-                <div className="flex-1 overflow-y-auto border p-2">
-                    {list.map((c:any)=><div key={c.id} className="flex justify-between p-2 border-b"><span>{c.name}</span><button onClick={()=>{const l=list.filter((x:any)=>x.id!==c.id); setList(l); onSave(l);}} className="text-red-500">Sil</button></div>)}
+                <div className="flex gap-2 justify-end mt-4">
+                    <button onClick={onClose} className="px-4 py-2 border rounded hover:bg-slate-50">İptal</button>
+                    <button onClick={()=>{onSave(val); onClose();}} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Kaydet</button>
                 </div>
             </div>
         </div>
@@ -567,6 +690,7 @@ function App() {
   const [taxItems, setTaxItems] = useState<TaxDocumentData[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+  const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ZReportData | null>(null);
 
   const [companies, setCompanies] = useState<Company[]>(() => {
@@ -576,6 +700,11 @@ function App() {
   const handleSaveCompanies = (updatedCompanies: Company[]) => {
       setCompanies(updatedCompanies);
       localStorage.setItem('companies', JSON.stringify(updatedCompanies));
+  };
+
+  const handleEditCompany = (id: string) => {
+      setEditingCompanyId(id);
+      setIsCompanyModalOpen(true);
   };
 
   const handleFiles = useCallback(async (files: File[]) => {
@@ -619,7 +748,7 @@ function App() {
         <div className="flex items-center gap-3"><div className="bg-blue-600 text-white font-bold p-2 rounded-lg">M-AI</div><h1 className="text-xl font-bold text-slate-800">MuhasebeAI <span className="text-blue-600 text-sm">Turbo</span></h1></div>
         <div className="flex gap-4">
           <button onClick={() => setIsTestMode(!isTestMode)} className={`px-4 py-2 rounded-lg text-xs font-bold ${isTestMode ? 'bg-amber-400 text-amber-900' : 'bg-slate-100 text-slate-500'}`}>{isTestMode ? 'TEST AKTİF' : 'Test Modu'}</button>
-          <button onClick={() => setIsCompanyModalOpen(true)} className="bg-white border border-slate-300 text-slate-700 px-5 py-2 rounded-lg text-xs font-bold hover:bg-slate-50 flex items-center gap-2"><span>🏢</span> Firmalar</button>
+          <button onClick={() => { setEditingCompanyId(null); setIsCompanyModalOpen(true); }} className="bg-white border border-slate-300 text-slate-700 px-5 py-2 rounded-lg text-xs font-bold hover:bg-slate-50 flex items-center gap-2"><span>🏢</span> Firmalar</button>
         </div>
       </header>
       <main className="max-w-6xl mx-auto py-10 px-4">
@@ -640,9 +769,19 @@ function App() {
           )}
         </div>
         {activeMode === 'zreport' && zItems.length > 0 && (<ResultTable data={zItems} onUpdateItem={(id, f, v) => setZItems(p => p.map(i => i.id === id ? {...i, [f]:v} : i))} onEditDetails={setEditingItem} />)}
-        {activeMode === 'tax' && <TaxDashboard data={taxItems} companies={companies} />}
+        {activeMode === 'tax' && <TaxDashboard data={taxItems} companies={companies} onEditCompany={handleEditCompany} />}
       </main>
-      {isCompanyModalOpen && <CompanyManagerModal isOpen={isCompanyModalOpen} onClose={() => setIsCompanyModalOpen(false)} companies={companies} onSave={handleSaveCompanies} />}
+      
+      {isCompanyModalOpen && (
+        <CompanyManagerModal 
+            isOpen={isCompanyModalOpen} 
+            onClose={() => { setIsCompanyModalOpen(false); setEditingCompanyId(null); }} 
+            companies={companies} 
+            onSave={handleSaveCompanies} 
+            initialEditId={editingCompanyId}
+        />
+      )}
+      
       {editingItem && <EditModal item={editingItem} isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={(u:any) => { setZItems(p => p.map(i => i.id === u.id ? u : i)); setEditingItem(null); }} />}
     </div>
   );
